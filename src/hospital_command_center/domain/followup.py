@@ -3,7 +3,17 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+def _coerce_str_list(value: object) -> object:
+    """Tolerate an LLM returning a single string where a list was expected
+    (e.g. "immediate" instead of ["immediate"]) instead of failing plan
+    generation outright over a minor formatting slip.
+    """
+    if isinstance(value, str):
+        return [value] if value else []
+    return value
 
 
 class MedicationReminder(BaseModel):
@@ -14,6 +24,8 @@ class MedicationReminder(BaseModel):
     duration_days: int | None = None
     notes: str | None = None
     priority: str = "medium"  # low, medium, high
+
+    _coerce_times = field_validator("times", mode="before")(_coerce_str_list)
 
 
 class LabReminder(BaseModel):
@@ -35,13 +47,27 @@ class DietGuidance(BaseModel):
     # stay empty — no meal-specific advice should be given without this info.
     preferences_confirmed: bool = False
 
+    _coerce_recommended = field_validator("recommended", mode="before")(_coerce_str_list)
+    _coerce_avoid = field_validator("avoid", mode="before")(_coerce_str_list)
+
 
 class EscalationRule(BaseModel):
     trigger: str
     severity: str = "medium"  # medium, high, critical
     action: str
-    notify_on: list[str] = Field(default_factory=list)
+    # Who/what should be alerted, e.g. ["doctor", "emergency_contact", "sms"].
+    # NOTE: this field used to be called `notify_on`, which models routinely
+    # (and reasonably) misread as "when to notify" rather than "who to
+    # notify" and filled with a timing string like "immediate" — that's a
+    # str-vs-list mismatch that failed Pydantic validation and took down the
+    # entire follow-up plan. Renamed for clarity, and `notify_within` added
+    # as the actual place for that timing information.
+    notify_channels: list[str] = Field(default_factory=list)
+    # How urgently this should be acted on, e.g. "immediate", "within 24 hours".
+    notify_within: str = ""
     contact: str | None = None
+
+    _coerce_notify_channels = field_validator("notify_channels", mode="before")(_coerce_str_list)
 
 
 class ScheduledTask(BaseModel):

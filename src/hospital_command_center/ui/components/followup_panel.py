@@ -75,10 +75,15 @@ def render_followup(followup: dict[str, Any]) -> None:
         for rule in rules:
             severity = rule.get("severity", "medium").upper()
             color = "red" if severity == "CRITICAL" else "orange" if severity == "HIGH" else "blue"
-            st.markdown(
+            line = (
                 f":{color}[**{severity}**] — {rule.get('trigger')}  \n"
                 f"**Action:** {rule.get('action')}"
             )
+            if rule.get("notify_within"):
+                line += f"  \n**Notify:** {rule['notify_within']}"
+            if rule.get("notify_channels"):
+                line += f" via {', '.join(rule['notify_channels'])}"
+            st.markdown(line)
 
     schedule = followup.get("schedule", [])
     if schedule:

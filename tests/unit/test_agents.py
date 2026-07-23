@@ -1,5 +1,6 @@
 """Unit tests for agents."""
 
+import json
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 from datetime import datetime, timezone
@@ -258,3 +259,85 @@ def test_followup_agent_keeps_hydration_advice_when_clinically_relevant(mock_get
     )
 
     assert result["diet_guidance"]["hydration_notes"] != ""
+
+
+def test_escalation_rule_coerces_bare_string_notify_channels():
+    """Regression test: the LLM sometimes returns a plain string like "immediate"
+    for what used to be `notify_on` (now `notify_channels`), which previously
+    crashed Pydantic validation and took down the entire follow-up plan
+    generation (both the structured-output path and the manual-parse
+    fallback), landing on the generic "processing error" plan.
+    """
+    from hospital_command_center.domain.followup import EscalationRule
+
+    rule = EscalationRule(
+        trigger="Chest pain",
+        severity="critical",
+        action="Visit ER immediately",
+        notify_channels="immediate",  # bare string, not a list
+    )
+    assert rule.notify_channels == ["immediate"]
+
+
+def test_escalation_rule_accepts_proper_list_notify_channels():
+    from hospital_command_center.domain.followup import EscalationRule
+
+    rule = EscalationRule(
+        trigger="Chest pain",
+        severity="critical",
+        action="Visit ER immediately",
+        notify_channels=["doctor", "emergency_contact"],
+        notify_within="immediate",
+    )
+    assert rule.notify_channels == ["doctor", "emergency_contact"]
+    assert rule.notify_within == "immediate"
+
+
+@patch("hospital_command_center.agents.followup.get_chat_model")
+def test_followup_agent_survives_notify_channels_type_slip(mock_get_chat_model):
+    """End-to-end: even if the raw LLM dict has notify_channels as a bare
+    string, the agent should still produce a valid plan instead of falling
+    all the way through to the generic-error fallback.
+    """
+    encounter_id = uuid4()
+
+    # Simulate structured_output raising (as it would against a raw dict with
+    # the wrong type), forcing the manual-JSON fallback path, which is where
+    # the coercion needs to also hold up.
+    raw_json = json.dumps({
+        "encounter_id": str(encounter_id),
+        "medication_reminders": [],
+        "lab_reminders": [],
+        "diet_guidance": {"summary": "stub", "preferences_confirmed": True},
+        "escalation_rules": [
+            {
+                "trigger": "Chest pain",
+                "severity": "critical",
+                "action": "Visit ER",
+                "notify_channels": "immediate",
+                "notify_within": "immediate",
+            }
+        ],
+        "schedule": [],
+    })
+
+    mock_llm = MagicMock()
+    mock_structured_llm = MagicMock()
+    mock_structured_llm.invoke.side_effect = Exception("simulated structured-output failure")
+    mock_llm.with_structured_output.return_value = mock_structured_llm
+    mock_response = MagicMock()
+    mock_response.content = raw_json
+    mock_llm.invoke.return_value = mock_response
+    mock_get_chat_model.return_value = mock_llm
+
+    agent = FollowUpAgent()
+    result = agent.run(
+        encounter_id=encounter_id,
+        symptoms="chest pain",
+        urgency="critical",
+        medical_summary="Possible cardiac event.",
+        dietary_preference="vegetarian",
+    )
+
+    assert result["notes"] != "Generic follow-up plan generated due to processing error."
+    assert result["escalation_rules"][0]["notify_channels"] == ["immediate"]
