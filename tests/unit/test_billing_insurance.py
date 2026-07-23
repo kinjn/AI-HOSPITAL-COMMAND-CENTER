@@ -352,19 +352,27 @@ class TestBillingAgentFuzzyMatching:
     @pytest.mark.parametrize(
         "test_name,expected_cost",
         [
-            ("cbc", Decimal("450.00")),
-            ("CBC", Decimal("450.00")),
-            ("CBC Test", Decimal("450.00")),
-            ("Complete Blood Count", Decimal("450.00")),
-            ("Complete Blood Count (CBC)", Decimal("450.00")),
-            ("ecg", Decimal("600.00")),
-            ("ECG", Decimal("600.00")),
-            ("Electrocardiogram", Decimal("600.00")),
-            ("Chest Xray", Decimal("800.00")),
-            ("Chest X-Ray", Decimal("800.00")),
-            ("Chest X Ray", Decimal("800.00")),
-            ("Chest X-ray", Decimal("800.00")),
-            ("Some Unknown Test", Decimal("750.00")),  # default
+            ("cbc", Decimal("400.00")),
+            ("CBC", Decimal("400.00")),
+            ("CBC Test", Decimal("400.00")),
+            ("Complete Blood Count", Decimal("400.00")),
+            ("Complete Blood Count (CBC)", Decimal("400.00")),
+            ("ecg", Decimal("400.00")),
+            ("ECG", Decimal("400.00")),
+            ("Electrocardiogram", Decimal("400.00")),
+            ("Chest Xray", Decimal("600.00")),
+            ("Chest X-Ray", Decimal("600.00")),
+            ("Chest X Ray", Decimal("600.00")),
+            ("Chest X-ray", Decimal("600.00")),
+            ("LFT", Decimal("900.00")),
+            ("Liver Function Test", Decimal("900.00")),
+            ("Lipid Profile", Decimal("700.00")),
+            ("HbA1c", Decimal("650.00")),
+            ("Fasting Blood Sugar", Decimal("150.00")),
+            ("CT Scan", Decimal("5500.00")),
+            ("MRI", Decimal("8500.00")),
+            ("Ultrasound Abdomen", Decimal("1500.00")),
+            ("Some Unknown Test", Decimal("900.00")),  # default
         ],
     )
     def test_fuzzy_matching_costs(self, agent, test_name, expected_cost):
@@ -381,6 +389,11 @@ class TestBillingAgentFuzzyMatching:
             ("CBC Test", "85025"),
             ("Electrocardiogram", "93000"),
             ("Chest X-Ray", "71046"),
+            ("Liver Function Test", "80076"),
+            ("Lipid Profile", "80061"),
+            ("HbA1c", "83036"),
+            ("CT Scan", "70450"),
+            ("MRI", "70551"),
         ],
     )
     def test_fuzzy_matching_cpt_codes(self, _mock_invoke, agent, test_name, expected_cpt):
@@ -1518,8 +1531,8 @@ class TestDuplicateTestBillingGuard:
             },
         )
         cost_breakdown = result["cost_breakdown"]
-        # Single CBC unit cost (450.00), not double (900.00).
-        assert Decimal(cost_breakdown["test_cost"]) == Decimal("450.00")
+        # Single CBC unit cost (400.00), not double (800.00).
+        assert Decimal(cost_breakdown["test_cost"]) == Decimal("400.00")
         # CPT code for CBC must appear exactly once.
         assert result["insurance_document"]["cpt_codes"].count("85025") == 1
         # proposed_services must list the diagnostic once, not twice.

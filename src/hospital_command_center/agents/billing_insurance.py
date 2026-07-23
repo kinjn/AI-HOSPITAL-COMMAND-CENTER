@@ -50,36 +50,77 @@ class _BillingLLMOutput(BaseModel):
     )
 
 
+
+# Consultation/visit fees reflect typical Indian private-hospital rates
+# (physician fee + basic facility component). Emergency includes the ED
+# facility charge on top of the physician evaluation; teleconsultation is
+# priced lower given the absence of a physical facility overhead.
 _CONSULTATION_FEE_INR: dict[CarePathway, Decimal] = {
-    CarePathway.OPD: Decimal("500.00"),
-    CarePathway.TELECONSULTATION: Decimal("350.00"),
-    CarePathway.EMERGENCY: Decimal("2500.00"),
-    CarePathway.SPECIALIST_REFERRAL: Decimal("1500.00"),
+    CarePathway.OPD: Decimal("700.00"),
+    CarePathway.TELECONSULTATION: Decimal("400.00"),
+    CarePathway.EMERGENCY: Decimal("3000.00"),
+    CarePathway.SPECIALIST_REFERRAL: Decimal("1800.00"),
 }
 
+# Diagnostic test unit costs, benchmarked against typical Indian private-
+# hospital / diagnostic-lab price lists. Keys are canonical test names
+# produced by ``_normalize_test_name`` — see ``_TEST_NAME_ALIASES`` below for
+# the fuzzy-matching patterns that map free-text test names onto these keys.
 _TEST_COST_INR: dict[str, Decimal] = {
-    "cbc": Decimal("450.00"),
-    "basic metabolic panel": Decimal("1200.00"),
-    "chest x-ray": Decimal("800.00"),
-    "ecg": Decimal("600.00"),
-    "echocardiogram": Decimal("3500.00"),
-    "urinalysis": Decimal("350.00"),
+    "cbc": Decimal("400.00"),
+    "basic metabolic panel": Decimal("950.00"),
+    "liver function test": Decimal("900.00"),
+    "lipid profile": Decimal("700.00"),
+    "thyroid function test": Decimal("900.00"),
+    "hba1c": Decimal("650.00"),
+    "blood glucose": Decimal("150.00"),
+    "chest x-ray": Decimal("600.00"),
+    "ecg": Decimal("400.00"),
+    "echocardiogram": Decimal("2800.00"),
+    "urinalysis": Decimal("250.00"),
+    "stool routine": Decimal("300.00"),
+    "blood culture": Decimal("1200.00"),
+    "urine culture": Decimal("900.00"),
+    "troponin": Decimal("1300.00"),
+    "d-dimer": Decimal("1800.00"),
+    "coagulation profile": Decimal("700.00"),
+    "ct scan": Decimal("5500.00"),
+    "mri": Decimal("8500.00"),
+    "ultrasound abdomen": Decimal("1500.00"),
+    "sputum test": Decimal("350.00"),
+    "blood typing": Decimal("200.00"),
+    "malaria test": Decimal("300.00"),
+    "dengue test": Decimal("900.00"),
+    "hiv test": Decimal("500.00"),
+    "covid rt-pcr": Decimal("700.00"),
+    "pregnancy test": Decimal("150.00"),
+    "vitamin d": Decimal("1200.00"),
+    "vitamin b12": Decimal("900.00"),
 }
 
-_DEFAULT_TEST_COST_INR = Decimal("750.00")
+# Applied to any suggested test that doesn't match a known alias — set close
+# to the median of the priced table above rather than an arbitrary low
+# figure, so unmapped/novel tests don't understate the estimate.
+_DEFAULT_TEST_COST_INR = Decimal("900.00")
 
+# Medication estimate scales with acuity: critical patients typically require
+# IV fluids/emergency drugs, high-urgency patients need broader empirical
+# coverage, while low-urgency OPD visits are usually a short oral course.
 _MEDICATION_COST_INR: dict[UrgencyLevel, Decimal] = {
-    UrgencyLevel.LOW: Decimal("150.00"),
-    UrgencyLevel.MEDIUM: Decimal("350.00"),
-    UrgencyLevel.HIGH: Decimal("750.00"),
-    UrgencyLevel.CRITICAL: Decimal("1200.00"),
+    UrgencyLevel.LOW: Decimal("200.00"),
+    UrgencyLevel.MEDIUM: Decimal("450.00"),
+    UrgencyLevel.HIGH: Decimal("900.00"),
+    UrgencyLevel.CRITICAL: Decimal("2200.00"),
 }
 
+# Miscellaneous/facility charges: registration, nursing, consumables.
+# Emergency carries the largest component (triage nursing, monitoring,
+# consumables, observation bay time) versus a light OPD registration fee.
 _MISC_COST_INR: dict[CarePathway, Decimal] = {
-    CarePathway.OPD: Decimal("100.00"),
-    CarePathway.TELECONSULTATION: Decimal("50.00"),
-    CarePathway.EMERGENCY: Decimal("800.00"),
-    CarePathway.SPECIALIST_REFERRAL: Decimal("300.00"),
+    CarePathway.OPD: Decimal("150.00"),
+    CarePathway.TELECONSULTATION: Decimal("75.00"),
+    CarePathway.EMERGENCY: Decimal("1800.00"),
+    CarePathway.SPECIALIST_REFERRAL: Decimal("400.00"),
 }
 
 # ---------------------------------------------------------------------------
@@ -89,10 +130,33 @@ _MISC_COST_INR: dict[CarePathway, Decimal] = {
 _TEST_CPT_CODES: dict[str, str] = {
     "cbc": "85025",
     "basic metabolic panel": "80048",
+    "liver function test": "80076",
+    "lipid profile": "80061",
+    "thyroid function test": "84443",
+    "hba1c": "83036",
+    "blood glucose": "82947",
     "chest x-ray": "71046",
     "ecg": "93000",
     "echocardiogram": "93306",
     "urinalysis": "81003",
+    "stool routine": "82272",
+    "blood culture": "87040",
+    "urine culture": "87086",
+    "troponin": "84484",
+    "d-dimer": "85379",
+    "coagulation profile": "85610",
+    "ct scan": "70450",
+    "mri": "70551",
+    "ultrasound abdomen": "76700",
+    "sputum test": "87116",
+    "blood typing": "86900",
+    "malaria test": "87207",
+    "dengue test": "86790",
+    "hiv test": "86703",
+    "covid rt-pcr": "87635",
+    "pregnancy test": "81025",
+    "vitamin d": "82306",
+    "vitamin b12": "82607",
 }
 
 _PATHWAY_CPT_CODES: dict[CarePathway, str] = {
@@ -111,6 +175,108 @@ _URGENCY_ICD10_CODES: dict[UrgencyLevel, str] = {
 
 # CPT visit codes that are incompatible with an emergency encounter
 _NON_EMERGENCY_VISIT_CPTS: frozenset[str] = frozenset({"99213", "99214", "99441"})
+
+# ---------------------------------------------------------------------------
+# Human-readable code descriptions — display-only.
+#
+# The structured `icd10_codes` / `cpt_codes` arrays returned to callers stay
+# code-only (this matches how payers/TPAs actually expect a claims payload
+# to look). These lookups are used *only* when rendering the printed
+# pre-authorization letter in `_format_insurance_documentation`, so a human
+# reviewer isn't left staring at a bare code with no clinical context. Codes
+# not present here still render fine — the formatter falls back to the code
+# alone.
+# ---------------------------------------------------------------------------
+
+_ICD10_DESCRIPTIONS: dict[str, str] = {
+    "I21.9": "Acute myocardial infarction, unspecified",
+    "R07.9": "Chest pain, unspecified",
+    "R21": "Rash and other nonspecific skin eruption",
+    "L40.9": "Psoriasis, unspecified",
+    "T78.40XA": "Allergic reaction, unspecified, initial encounter",
+    "G43.909": "Migraine, unspecified, not intractable",
+    "R51.9": "Headache, unspecified",
+    "R42": "Dizziness and giddiness",
+    "R56.9": "Unspecified convulsions",
+    "R55": "Syncope and collapse",
+    "R20.2": "Paresthesia of skin",
+    "R50.9": "Fever, unspecified",
+    "R53.83": "Other fatigue",
+    "R63.4": "Abnormal weight loss",
+    "R68.83": "Chills (without fever)",
+    "J06.9": "Acute upper respiratory infection, unspecified",
+    "R06.02": "Shortness of breath",
+    "R06.2": "Wheezing",
+    "J45.909": "Unspecified asthma, uncomplicated",
+    "J18.9": "Pneumonia, unspecified organism",
+    "J01.90": "Acute sinusitis, unspecified",
+    "H66.90": "Otitis media, unspecified, unspecified ear",
+    "H10.9": "Unspecified conjunctivitis",
+    "R10.9": "Unspecified abdominal pain",
+    "R11.2": "Nausea with vomiting, unspecified",
+    "R19.7": "Diarrhea, unspecified",
+    "K59.00": "Constipation, unspecified",
+    "K21.9": "Gastro-esophageal reflux disease without esophagitis",
+    "N39.0": "Urinary tract infection, site not specified",
+    "R35.0": "Frequency of micturition",
+    "R31.9": "Hematuria, unspecified",
+    "M54.9": "Dorsalgia, unspecified",
+    "M54.2": "Cervicalgia",
+    "M25.50": "Pain in joint, unspecified",
+    "T14.8": "Other injury of unspecified body region",
+    "R00.2": "Palpitations",
+    "R60.9": "Edema, unspecified",
+    "F41.9": "Anxiety disorder, unspecified",
+    "F32.9": "Major depressive disorder, single episode, unspecified",
+    "G47.00": "Insomnia, unspecified",
+    "E66.9": "Obesity, unspecified",
+    "E03.9": "Hypothyroidism, unspecified",
+    "E05.90": "Thyrotoxicosis, unspecified without thyrotoxic crisis",
+    "D64.9": "Anemia, unspecified",
+    "N17.9": "Acute kidney failure, unspecified",
+    "N18.9": "Chronic kidney disease, unspecified",
+    "E11.9": "Type 2 diabetes mellitus without complications",
+    "I10": "Essential (primary) hypertension",
+    "I00.9": "Rheumatic fever without heart involvement",
+    "R69": "Illness, unspecified",
+    "R68.89": "Other general symptoms and signs",
+}
+
+_CPT_DESCRIPTIONS: dict[str, str] = {
+    "99285": "ED visit, high severity",
+    "99213": "Office/outpatient visit, established patient",
+    "99441": "Telephone E/M service, 5-10 minutes",
+    "99214": "Office/outpatient visit, established patient, moderate complexity",
+    "85025": "Complete blood count (CBC), automated with differential",
+    "80048": "Basic metabolic panel",
+    "80076": "Hepatic function panel",
+    "80061": "Lipid panel",
+    "84443": "Thyroid stimulating hormone (TSH)",
+    "83036": "Hemoglobin A1c",
+    "82947": "Glucose, quantitative, blood",
+    "71046": "Radiologic exam, chest, 2 views",
+    "93000": "Electrocardiogram, routine ECG with interpretation",
+    "93306": "Echocardiography, transthoracic, complete",
+    "81003": "Urinalysis, automated, without microscopy",
+    "82272": "Fecal occult blood test",
+    "87040": "Blood culture, bacterial",
+    "87086": "Urine culture, bacterial, quantitative",
+    "84484": "Troponin, quantitative",
+    "85379": "D-dimer, quantitative",
+    "85610": "Prothrombin time (PT)",
+    "70450": "CT scan, head/brain, without contrast",
+    "70551": "MRI, brain, without contrast",
+    "76700": "Ultrasound, abdomen, complete",
+    "87116": "Culture, mycobacterial (AFB)",
+    "86900": "Blood typing, ABO",
+    "87207": "Blood smear, special stain (e.g. malaria)",
+    "86790": "Dengue virus antibody",
+    "86703": "HIV-1/HIV-2 antibody, single assay",
+    "87635": "SARS-CoV-2, RT-PCR",
+    "81025": "Urine pregnancy test, visual color comparison",
+    "82306": "Vitamin D, 25-hydroxy",
+    "82607": "Vitamin B-12 (cyanocobalamin)",
+}
 
 # Ordered list of (compiled_regex, icd10_code) pairs for broad, reusable symptom
 # categories. Order matters: more-specific patterns (e.g. ACS composite, or a
@@ -553,6 +719,154 @@ _TEST_NAME_ALIASES: list[tuple[str, list[str]]] = [
             r"\burine\s+test\b",
         ],
     ),
+    (
+        "liver function test",
+        [r"\bliver\s+function\s+test\b", r"\blft\b"],
+    ),
+    (
+        "lipid profile",
+        [r"\blipid\s+profile\b", r"\blipid\s+panel\b"],
+    ),
+    (
+        "thyroid function test",
+        [
+            r"\bthyroid\s+function\s+test\b",
+            r"\btft\b",
+            r"\bthyroid\s+profile\b",
+            r"\btsh\b",
+        ],
+    ),
+    (
+        "hba1c",
+        [
+            r"\bhba1c\b",
+            r"\bglycated\s+hemoglobin\b",
+            r"\bhemoglobin\s+a1c\b",
+        ],
+    ),
+    (
+        "blood glucose",
+        [
+            r"\bblood\s+glucose\b",
+            r"\bblood\s+sugar\b",
+            r"\bfasting\s+blood\s+sugar\b",
+            r"\bfbs\b",
+            r"\brandom\s+blood\s+sugar\b",
+        ],
+    ),
+    (
+        "stool routine",
+        [
+            r"\bstool\s+(?:routine|exam|test|culture)\b",
+            r"\bfecal\s+occult\s+blood\b",
+        ],
+    ),
+    (
+        "blood culture",
+        [r"\bblood\s+culture\b"],
+    ),
+    (
+        "urine culture",
+        [r"\burine\s+culture\b"],
+    ),
+    (
+        "troponin",
+        [r"\btroponin\b"],
+    ),
+    (
+        "d-dimer",
+        [r"\bd[\s\-]?dimer\b"],
+    ),
+    (
+        "coagulation profile",
+        [
+            r"\bcoagulation\s+profile\b",
+            r"\bpt[\s/]?inr\b",
+            r"\bprothrombin\s+time\b",
+            r"\baptt\b",
+        ],
+    ),
+    (
+        "ct scan",
+        [
+            r"\bct\s+scan\b",
+            r"\bcat\s+scan\b",
+            r"\bcomputed\s+tomography\b",
+        ],
+    ),
+    (
+        "mri",
+        [
+            r"\bmri\b",
+            r"\bmagnetic\s+resonance\s+imaging\b",
+        ],
+    ),
+    (
+        "ultrasound abdomen",
+        [
+            r"\bultrasound\b",
+            r"\busg\b",
+            r"\bsonography\b",
+        ],
+    ),
+    (
+        "sputum test",
+        [r"\bsputum\s+(?:test|afb|culture|examination)\b"],
+    ),
+    (
+        "blood typing",
+        [
+            r"\bblood\s+typing\b",
+            r"\bblood\s+group(?:ing)?\b",
+        ],
+    ),
+    (
+        "malaria test",
+        [
+            r"\bmalaria\s+(?:test|smear|antigen)\b",
+            r"\bmp\s+smear\b",
+        ],
+    ),
+    (
+        "dengue test",
+        [r"\bdengue\b"],
+    ),
+    (
+        "hiv test",
+        [
+            r"\bhiv\s+test\b",
+            r"\bhiv\s+antibody\b",
+        ],
+    ),
+    (
+        "covid rt-pcr",
+        [
+            r"\bcovid.*\bpcr\b",
+            r"\brt[\s\-]?pcr\b",
+        ],
+    ),
+    (
+        "pregnancy test",
+        [
+            r"\bpregnancy\s+test\b",
+            r"\burine\s+hcg\b",
+            r"\bbeta\s+hcg\b",
+        ],
+    ),
+    (
+        "vitamin d",
+        [
+            r"\bvitamin\s+d\b",
+            r"25[\s\-]?oh\s+vitamin\s+d",
+        ],
+    ),
+    (
+        "vitamin b12",
+        [
+            r"\bvitamin\s+b12\b",
+            r"\bb12\s+level\b",
+        ],
+    ),
 ]
 
 # Pre-compile patterns for performance
@@ -589,6 +903,34 @@ def _dedupe_tests(tests: list[str]) -> list[str]:
             seen.add(key)
             result.append(test)
     return result
+
+
+def _build_submission_instructions(*, pathway: CarePathway, urgency: UrgencyLevel) -> str:
+    """Generate submission guidance tailored to urgency and care pathway.
+
+    Emergency/critical encounters need an expedited concurrent-review
+    channel since care typically starts before authorization is confirmed;
+    routine OPD/teleconsultation/specialist referrals go through the
+    standard pre-authorization channel with normal insurer turnaround
+    times.
+    """
+    if pathway == CarePathway.EMERGENCY or urgency == UrgencyLevel.CRITICAL:
+        return (
+            "Submit as an EMERGENCY / concurrent authorization via the insurer's "
+            "24x7 cashless desk or TPA helpline immediately, since treatment has "
+            "already commenced or is clinically time-critical. Attach this "
+            "document, the clinical summary, and photo ID/policy card. Insurers "
+            "are generally required to respond to emergency cashless requests "
+            "within 1 hour of receipt; do not delay treatment pending approval."
+        )
+    return (
+        "Submit through the insurer's or TPA's standard pre-authorization "
+        "portal at least 48-72 hours prior to a planned procedure, attaching "
+        "this document, the clinical summary, the itemized cost breakdown, "
+        "and the patient's policy card / photo ID. Standard-track requests are "
+        "typically adjudicated within 24-48 business hours; follow up with the "
+        "reference number above if no response is received."
+    )
 
 
 class BillingInsuranceAgent(BaseAgent):
@@ -787,6 +1129,9 @@ class BillingInsuranceAgent(BaseAgent):
             coverage_notes=coverage_notes,
             icd10_codes=icd10_codes,
             cpt_codes=cpt_codes,
+            submission_instructions=_build_submission_instructions(
+                pathway=pathway, urgency=urgency
+            ),
         )
 
     def _format_insurance_documentation(
@@ -794,40 +1139,84 @@ class BillingInsuranceAgent(BaseAgent):
         document: InsuranceDocument,
         cost_breakdown: CostBreakdown,
     ) -> str:
+        def _money(value: Decimal) -> str:
+            return f"Rs. {value:,.2f}"
+
         services = "\n".join(f"  - {service}" for service in document.proposed_services)
-        icd10_lines = "\n".join(f"  {code}" for code in document.icd10_codes)
-        cpt_lines = "\n".join(f"  {code}" for code in document.cpt_codes)
+
+        icd10_lines = "\n".join(
+            f"  {code:<10} {_ICD10_DESCRIPTIONS.get(code, '(description not coded — refer to ICD-10-CM index)')}"
+            for code in document.icd10_codes
+        )
+        cpt_lines = "\n".join(
+            f"  {code:<10} {_CPT_DESCRIPTIONS.get(code, '(description not coded — refer to CPT code book)')}"
+            for code in document.cpt_codes
+        )
+
         return "\n".join(
             [
+                "=" * 72,
+                "HOSPITAL COMMAND CENTER — BILLING & INSURANCE UNIT",
                 "INSURANCE PRE-AUTHORIZATION REQUEST",
-                f"Reference: {document.reference_number}",
-                f"Encounter ID: {document.encounter_id}",
-                f"Document Type: {document.document_type}",
-                f"Generated At: {document.generated_at.isoformat()}Z",
+                "=" * 72,
+                f"Reference Number:   {document.reference_number}",
+                f"Encounter ID:       {document.encounter_id}",
+                f"Document Type:      {document.document_type}",
+                f"Generated At (UTC): {document.generated_at.isoformat()}Z",
+                "Patient Name:       [As per hospital registration]",
+                "Policy / Member ID: [To be completed by billing desk]",
+                "Treating Facility:  [Facility name / network hospital ID]",
+                "-" * 72,
+                "CLINICAL INDICATION",
+                "-" * 72,
+                f"{document.clinical_indication}",
                 "",
-                "Clinical Indication:",
-                f"  {document.clinical_indication}",
+                "-" * 72,
+                "PROPOSED SERVICES",
+                "-" * 72,
+                services if services else "  (none)",
                 "",
-                "Proposed Services:",
-                services,
-                "",
-                "ICD-10 DIAGNOSIS CODES:",
+                "-" * 72,
+                "ICD-10 DIAGNOSIS CODES",
+                "-" * 72,
                 icd10_lines if icd10_lines else "  (none)",
                 "",
-                "CPT PROCEDURE CODES:",
+                "-" * 72,
+                "CPT PROCEDURE CODES",
+                "-" * 72,
                 cpt_lines if cpt_lines else "  (none)",
                 "",
-                "Cost Breakdown (INR):",
-                f"  Consultation: {cost_breakdown.consultation_fee}",
-                f"  Diagnostics: {cost_breakdown.test_cost}",
-                f"  Medication (est.): {cost_breakdown.medication_cost}",
-                f"  Miscellaneous: {cost_breakdown.miscellaneous_cost}",
-                f"  Total: {cost_breakdown.total}",
+                "-" * 72,
+                "ESTIMATED COST BREAKDOWN (INR)",
+                "-" * 72,
+                f"  {'Consultation / visit fee:':<32}{_money(cost_breakdown.consultation_fee):>15}",
+                f"  {'Diagnostic tests:':<32}{_money(cost_breakdown.test_cost):>15}",
+                f"  {'Medication (estimated):':<32}{_money(cost_breakdown.medication_cost):>15}",
+                f"  {'Facility / miscellaneous:':<32}{_money(cost_breakdown.miscellaneous_cost):>15}",
+                "  " + "-" * 47,
+                f"  {'TOTAL ESTIMATED AMOUNT:':<32}{_money(cost_breakdown.total):>15}",
                 "",
-                "Coverage Notes:",
-                f"  {document.coverage_notes}",
+                "  Note: this is a good-faith clinical cost estimate for pre-",
+                "  authorization purposes only, not a final invoice. Actual charges",
+                "  may vary based on services rendered. The patient's final",
+                "  out-of-pocket responsibility (co-pay, deductible, and any",
+                "  non-covered items) is determined solely by the insurer/TPA under",
+                "  the terms of the specific policy and is not calculated here.",
                 "",
-                "Submission Instructions:",
-                f"  {document.submission_instructions}",
+                "-" * 72,
+                "COVERAGE NOTES / MEDICAL NECESSITY JUSTIFICATION",
+                "-" * 72,
+                f"{document.coverage_notes}",
+                "",
+                "-" * 72,
+                "SUBMISSION INSTRUCTIONS",
+                "-" * 72,
+                f"{document.submission_instructions}",
+                "",
+                "=" * 72,
+                "This document is system-generated by the Billing & Insurance agent",
+                "and requires review and countersignature by an authorized hospital",
+                "billing officer prior to submission to the insurer/TPA.",
+                "=" * 72,
             ]
         )

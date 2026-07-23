@@ -96,7 +96,12 @@ class InsuranceDocument(BaseModel):
         return _normalize_codes([str(v) for v in values], _CPT_RE)
     coverage_notes: str = Field(default="Subject to policy terms and insurer review.")
     submission_instructions: str = Field(
-        default="Attach clinical summary and itemized cost breakdown for pre-authorization."
+        default=(
+            "Submit through the insurer's or TPA's standard pre-authorization "
+            "channel, attaching this document, the clinical summary, the "
+            "itemized cost breakdown, and the patient's policy card / photo ID. "
+            "Subject to policy terms and insurer review."
+        )
     )
 
 
