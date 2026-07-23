@@ -1,0 +1,36 @@
+# Copy to settings.yaml and adjust per environment.
+app:
+  name: AI Hospital Command Center
+  env: development
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  prefix: "/api/v1"
+
+database:
+  url: "sqlite+aiosqlite:///./data/hospital_command_center.db"
+
+llm:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.2
+
+workflow:
+  routes:
+    - emergency
+    - opd
+    - teleconsultation
+    - specialist_referral
+
+channels:
+  whatsapp:
+    enabled: false
+  web:
+    enabled: true
+  mobile_app:
+    enabled: true
+
+followup:
+  medication_reminder_hours: [8, 14, 20]
+  escalation_threshold_hours: 24

@@ -1,0 +1,17 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+
+RUN pip install --no-cache-dir -e .
+
+RUN mkdir -p data/logs
+
+CMD ["sh", "-c", "python scripts/init_db.py && python scripts/run_api.py"]

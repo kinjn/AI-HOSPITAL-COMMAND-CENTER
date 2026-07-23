@@ -1,0 +1,33 @@
+# Core stack (pinned ranges; install with: pip install -r requirements.txt)
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
+
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+
+sqlalchemy>=2.0.36
+aiosqlite>=0.20.0
+alembic>=1.14.0
+
+streamlit>=1.40.0
+
+httpx>=0.27.0
+python-dotenv>=1.0.1
+structlog>=24.4.0
+tenacity>=9.0.0
+
+# Optional: WhatsApp channel (uncomment if needed)
+# twilio>=9.3.0
+
+# Development (optional)
+# pytest>=8.3.0
+# pytest-asyncio>=0.24.0
+# pytest-cov>=6.0.0
+# ruff>=0.8.0
+# mypy>=1.13.0

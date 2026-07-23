@@ -1,0 +1,1 @@
+"""Patient intake channel adapters."""

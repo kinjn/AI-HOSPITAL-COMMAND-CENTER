@@ -1,0 +1,9 @@
+[client]
+showSidebarNavigation = false
+
+[server]
+# Disable the file-change watcher. In production there's no need for
+# hot-reload, and on constrained containers (e.g. Render's free/starter
+# tiers) the watchdog-based watcher can exhaust the OS's inotify instance
+# limit, which crashes the watcher thread and destabilizes the app.
+fileWatcherType = "none"

@@ -1,0 +1,48 @@
+
+services:
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: hcc-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: hcc-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      - LLM_BASE_URL=http://ollama:11434/v1
+      - DATABASE_URL=sqlite+aiosqlite:///./data/hospital_command_center.db
+      - API_HOST=0.0.0.0
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: hcc-ui
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      - API_BASE_URL=http://api:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
