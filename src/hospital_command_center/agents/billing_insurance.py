@@ -2,6 +2,7 @@
 
 import logging
 import re
+import textwrap
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -952,6 +953,7 @@ class BillingInsuranceAgent(BaseAgent):
             urgency=triage.urgency,
             suggested_tests=medical_summary.suggested_tests,
         )
+        itemized_tests = self._itemized_test_costs(medical_summary.suggested_tests)
         insurance_document = self._build_insurance_document(
             encounter_id=encounter_id,
             pathway=pathway,
@@ -961,7 +963,10 @@ class BillingInsuranceAgent(BaseAgent):
             cost_breakdown=cost_breakdown,
         )
         insurance_documentation = self._format_insurance_documentation(
-            insurance_document, cost_breakdown
+            insurance_document,
+            cost_breakdown,
+            pathway=pathway,
+            itemized_tests=itemized_tests,
         )
 
         return BillingEstimate(
@@ -1018,6 +1023,15 @@ class BillingInsuranceAgent(BaseAgent):
     def _test_unit_cost(self, test_name: str) -> Decimal:
         normalized = _normalize_test_name(test_name)
         return _TEST_COST_INR.get(normalized, _DEFAULT_TEST_COST_INR)
+
+    def _itemized_test_costs(self, tests: list[str]) -> list[tuple[str, Decimal]]:
+        """Return (display_name, unit_cost) for each distinct suggested test.
+
+        Used to render a fully itemized bill (one line per test) in addition
+        to the aggregate ``test_cost`` bucket in ``CostBreakdown``.
+        """
+        deduped_tests = _dedupe_tests(tests)
+        return [(test, self._test_unit_cost(test)) for test in deduped_tests]
 
     def _build_insurance_document(
         self,
@@ -1138,9 +1152,22 @@ class BillingInsuranceAgent(BaseAgent):
         self,
         document: InsuranceDocument,
         cost_breakdown: CostBreakdown,
+        *,
+        pathway: CarePathway | None = None,
+        itemized_tests: list[tuple[str, Decimal]] | None = None,
     ) -> str:
+        _WRAP_WIDTH = 68
+
         def _money(value: Decimal) -> str:
             return f"Rs. {value:,.2f}"
+
+        def _paragraph(text: str) -> str:
+            """Wrap a long single-line field into an indented paragraph so it
+            reads naturally instead of forcing horizontal scrolling."""
+            if not text:
+                return "  (none provided)"
+            wrapped = textwrap.wrap(text.strip(), width=_WRAP_WIDTH)
+            return "\n".join(f"  {line}" for line in wrapped) if wrapped else "  (none provided)"
 
         services = "\n".join(f"  - {service}" for service in document.proposed_services)
 
@@ -1151,6 +1178,45 @@ class BillingInsuranceAgent(BaseAgent):
         cpt_lines = "\n".join(
             f"  {code:<10} {_CPT_DESCRIPTIONS.get(code, '(description not coded — refer to CPT code book)')}"
             for code in document.cpt_codes
+        )
+
+        # --- Itemized bill: one line per priced item, down to each specific
+        # test, in addition to the aggregate subtotals below it. ---
+        itemized_tests = itemized_tests or []
+        consultation_label = (
+            f"{pathway.value.replace('_', ' ').title()} consultation"
+            if pathway is not None
+            else "Consultation / visit fee"
+        )
+        bill_lines: list[str] = [
+            f"  {consultation_label:<45}{_money(cost_breakdown.consultation_fee):>15}",
+            "",
+            "  Diagnostic tests:",
+        ]
+        if itemized_tests:
+            for test_name, unit_cost in itemized_tests:
+                bill_lines.append(f"    - {test_name:<41}{_money(unit_cost):>15}")
+        else:
+            bill_lines.append("    - (no diagnostic tests ordered)")
+        bill_lines.extend(
+            [
+                f"  {'  Diagnostics subtotal:':<45}{_money(cost_breakdown.test_cost):>15}",
+                "",
+                f"  {'Medication (estimated):':<45}{_money(cost_breakdown.medication_cost):>15}",
+                f"  {'Facility / miscellaneous charges:':<45}{_money(cost_breakdown.miscellaneous_cost):>15}",
+                "  " + "-" * 60,
+                f"  {'TOTAL ESTIMATED AMOUNT:':<45}{_money(cost_breakdown.total):>15}",
+            ]
+        )
+        itemized_bill = "\n".join(bill_lines)
+
+        disclaimer = _paragraph(
+            "This is a good-faith clinical cost estimate for pre-authorization "
+            "purposes only, not a final invoice. Actual charges may vary based "
+            "on services actually rendered. The patient's final out-of-pocket "
+            "responsibility (co-pay, deductible, and any non-covered items) is "
+            "determined solely by the insurer/TPA under the terms of the "
+            "specific policy and is not calculated here."
         )
 
         return "\n".join(
@@ -1169,7 +1235,7 @@ class BillingInsuranceAgent(BaseAgent):
                 "-" * 72,
                 "CLINICAL INDICATION",
                 "-" * 72,
-                f"{document.clinical_indication}",
+                _paragraph(document.clinical_indication),
                 "",
                 "-" * 72,
                 "PROPOSED SERVICES",
@@ -1187,31 +1253,21 @@ class BillingInsuranceAgent(BaseAgent):
                 cpt_lines if cpt_lines else "  (none)",
                 "",
                 "-" * 72,
-                "ESTIMATED COST BREAKDOWN (INR)",
+                "ESTIMATED BILL (INR) — ITEMIZED",
                 "-" * 72,
-                f"  {'Consultation / visit fee:':<32}{_money(cost_breakdown.consultation_fee):>15}",
-                f"  {'Diagnostic tests:':<32}{_money(cost_breakdown.test_cost):>15}",
-                f"  {'Medication (estimated):':<32}{_money(cost_breakdown.medication_cost):>15}",
-                f"  {'Facility / miscellaneous:':<32}{_money(cost_breakdown.miscellaneous_cost):>15}",
-                "  " + "-" * 47,
-                f"  {'TOTAL ESTIMATED AMOUNT:':<32}{_money(cost_breakdown.total):>15}",
+                itemized_bill,
                 "",
-                "  Note: this is a good-faith clinical cost estimate for pre-",
-                "  authorization purposes only, not a final invoice. Actual charges",
-                "  may vary based on services rendered. The patient's final",
-                "  out-of-pocket responsibility (co-pay, deductible, and any",
-                "  non-covered items) is determined solely by the insurer/TPA under",
-                "  the terms of the specific policy and is not calculated here.",
+                disclaimer,
                 "",
                 "-" * 72,
                 "COVERAGE NOTES / MEDICAL NECESSITY JUSTIFICATION",
                 "-" * 72,
-                f"{document.coverage_notes}",
+                _paragraph(document.coverage_notes),
                 "",
                 "-" * 72,
                 "SUBMISSION INSTRUCTIONS",
                 "-" * 72,
-                f"{document.submission_instructions}",
+                _paragraph(document.submission_instructions),
                 "",
                 "=" * 72,
                 "This document is system-generated by the Billing & Insurance agent",
