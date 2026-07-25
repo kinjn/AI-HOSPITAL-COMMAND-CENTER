@@ -60,6 +60,7 @@ class WorkflowService:
             or encounter.source_channel,
             "dietary_preference": intake_context.get("dietary_preference"),
             "food_allergies": intake_context.get("food_allergies"),
+            "known_medical_conditions": intake_context.get("known_medical_conditions"),
         }
 
     async def start_from_intake(self, session: AsyncSession, payload: IntakeSubmission) -> dict:
@@ -84,6 +85,7 @@ class WorkflowService:
             patient_history=patient_history,
             dietary_preference=payload.dietary_preference,
             food_allergies=payload.food_allergies,
+            known_medical_conditions=payload.known_medical_conditions,
         )
 
         triage = state.get("triage") or {}
@@ -156,6 +158,8 @@ class WorkflowService:
             state["dietary_preference"] = context["dietary_preference"]
         if context.get("food_allergies"):
             state["food_allergies"] = context["food_allergies"]
+        if context.get("known_medical_conditions"):
+            state["known_medical_conditions"] = context["known_medical_conditions"]
         if patient_history:
             state["patient_history"] = patient_history
 

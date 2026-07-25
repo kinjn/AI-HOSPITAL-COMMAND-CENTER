@@ -26,7 +26,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import PromptTemplate
 
 from hospital_command_center.agents.base import BaseAgent
-from hospital_command_center.agents.llm import get_chat_model
+from hospital_command_center.agents.llm import get_chat_model, is_ollama_backend
 from hospital_command_center.core.logging import get_logger
 from hospital_command_center.domain.followup import DietGuidance, FollowUpPlan
 from pathlib import Path
@@ -220,6 +220,13 @@ class FollowUpAgent(BaseAgent):
         structured_llm = self.llm.with_structured_output(FollowUpPlan, method="json_schema")
 
         try:
+            # Ollama's OpenAI-compatible endpoint rejects the strict json_schema
+            # response format with a 400 on every call, so skip straight to the
+            # manual-parsing fallback in the except block below instead of
+            # paying for a guaranteed failed round-trip first.
+            if is_ollama_backend():
+                raise RuntimeError("skip structured attempt for Ollama backend")
+
             plan = structured_llm.invoke(prompt)
             plan = _apply_safety_constraints(
                 plan,

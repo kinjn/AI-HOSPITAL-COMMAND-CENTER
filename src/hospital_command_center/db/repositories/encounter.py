@@ -67,6 +67,63 @@ class EncounterRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_all_with_relations(self) -> list[EncounterModel]:
+        """Same as list_all, but eager-loads everything the operations
+        dashboard needs to render a row (patient, triage, billing, followups)
+        without triggering per-row lazy-load queries."""
+        result = await self.session.execute(
+            select(EncounterModel)
+            .options(
+                selectinload(EncounterModel.patient),
+                selectinload(EncounterModel.triage_result),
+                selectinload(EncounterModel.case_summary),
+                selectinload(EncounterModel.billing_records),
+                selectinload(EncounterModel.followups),
+            )
+            .order_by(EncounterModel.created_at.desc())
+        )
+        return list(result.scalars().unique().all())
+
+    async def get_by_id_with_relations(self, encounter_id: str) -> EncounterModel | None:
+        """Full detail load for the encounter result / detail page."""
+        result = await self.session.execute(
+            select(EncounterModel)
+            .options(
+                selectinload(EncounterModel.patient),
+                selectinload(EncounterModel.triage_result),
+                selectinload(EncounterModel.case_summary),
+                selectinload(EncounterModel.billing_records),
+                selectinload(EncounterModel.followups),
+            )
+            .where(EncounterModel.id == encounter_id)
+        )
+        return result.unique().scalar_one_or_none()
+
+    async def get_by_tracking_id(self, tracking_id: str) -> EncounterModel | None:
+        """Used by the Patient Portal's tracking-ID endpoints
+        (api/routes/patient.py) — resolves a patient-facing Tracking ID back
+        to its encounter without exposing the internal id to the client."""
+        result = await self.session.execute(
+            select(EncounterModel).where(EncounterModel.tracking_id == tracking_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_tracking_id_with_relations(self, tracking_id: str) -> EncounterModel | None:
+        """Same eager-loaded shape as get_by_id_with_relations, keyed by
+        Tracking ID for the patient-facing detail lookup."""
+        result = await self.session.execute(
+            select(EncounterModel)
+            .options(
+                selectinload(EncounterModel.patient),
+                selectinload(EncounterModel.triage_result),
+                selectinload(EncounterModel.case_summary),
+                selectinload(EncounterModel.billing_records),
+                selectinload(EncounterModel.followups),
+            )
+            .where(EncounterModel.tracking_id == tracking_id)
+        )
+        return result.unique().scalar_one_or_none()
+
     async def get_by_status(self, status: str) -> list[EncounterModel]:
         result = await self.session.execute(
             select(EncounterModel)

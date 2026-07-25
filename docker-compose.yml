@@ -29,17 +29,14 @@ services:
       - ollama
     restart: unless-stopped
 
-  ui:
+  frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.ui
-    container_name: hcc-ui
+      context: ./frontend
+    container_name: hcc-frontend
     ports:
-      - "8501:8501"
-    env_file:
-      - .env
+      - "5173:5173"
     environment:
-      - API_BASE_URL=http://api:8000
+      - VITE_API_BASE_URL=http://localhost:8000/api/v1
     depends_on:
       - api
     restart: unless-stopped

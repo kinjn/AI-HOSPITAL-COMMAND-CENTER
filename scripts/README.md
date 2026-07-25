@@ -4,7 +4,9 @@
 |--------|---------|
 | `init_db.py` | Create SQLite schema for a new database; does not migrate existing tables |
 | `run_api.py` | Start FastAPI with uvicorn |
-| `run_ui.py` | Start Streamlit command center |
+
+The command center UI is the React app in `frontend/` (`cd frontend && npm run dev`) — see
+`frontend/README.md`.
 
 ## Schema updates (existing databases)
 

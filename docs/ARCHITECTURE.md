@@ -38,5 +38,5 @@
 ## Deployment Surfaces
 
 - **FastAPI** — REST API + channel webhooks (`scripts/run_api.py`).
-- **Streamlit** — Internal command center UI (`scripts/run_ui.py`).
+- **React frontend** — Internal command center UI (`frontend/`, `npm run dev`).
 - **LangGraph** — Invoked from services or API route handlers.

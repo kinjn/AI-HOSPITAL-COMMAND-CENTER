@@ -15,6 +15,7 @@ class PatientWorkflowState(TypedDict, total=False):
     triage_conversation: list[dict[str, Any]]
     dietary_preference: str
     food_allergies: str
+    known_medical_conditions: str
     message: str
     triage: dict
     routing: dict

@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Design tokens — Patient Portal
+  Palette: Clinical Blue #1E4FD6 (primary), Sky Tint #EAF1FF (accent),
+  Cloud #F5F7FC (background), Ink #101A33 (foreground), Mint #15915A (success),
+  Amber #C2740A (medium/warning), Coral #DC3A3A (critical/destructive).
+  This is a deliberately different palette/type pairing from the internal
+  Staff Portal so the two apps never feel like the same product.
+*/
+@layer base {
+  :root {
+    --background: 224 41% 97%;
+    --foreground: 222 47% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 12%;
+
+    --border: 220 24% 89%;
+    --input: 220 24% 89%;
+    --ring: 224 74% 49%;
+
+    --muted: 222 30% 94%;
+    --muted-foreground: 220 14% 46%;
+
+    --primary: 224 74% 49%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 35% 95%;
+    --secondary-foreground: 222 47% 16%;
+
+    --accent: 218 100% 95%;
+    --accent-foreground: 224 74% 34%;
+
+    --destructive: 0 68% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --critical: 0 68% 55%;
+    --critical-foreground: 0 0% 100%;
+
+    --warning: 32 84% 40%;
+    --warning-foreground: 0 0% 100%;
+
+    --medium: 32 84% 40%;
+    --medium-foreground: 0 0% 100%;
+
+    --success: 150 74% 30%;
+    --success-foreground: 0 0% 100%;
+
+    --radius: 1rem;
+    --radius-xl: 1.5rem;
+  }
+
+  .dark {
+    --background: 224 42% 7%;
+    --foreground: 210 30% 94%;
+
+    --card: 224 36% 11%;
+    --card-foreground: 210 30% 94%;
+
+    --popover: 224 36% 11%;
+    --popover-foreground: 210 30% 94%;
+
+    --border: 222 26% 20%;
+    --input: 222 26% 20%;
+    --ring: 221 83% 66%;
+
+    --muted: 222 28% 15%;
+    --muted-foreground: 216 16% 68%;
+
+    --primary: 221 83% 66%;
+    --primary-foreground: 224 42% 9%;
+
+    --secondary: 222 28% 16%;
+    --secondary-foreground: 210 30% 94%;
+
+    --accent: 221 45% 20%;
+    --accent-foreground: 216 90% 84%;
+
+    --destructive: 0 62% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --critical: 0 68% 63%;
+    --critical-foreground: 224 42% 9%;
+
+    --warning: 35 88% 55%;
+    --warning-foreground: 224 42% 9%;
+
+    --medium: 35 88% 55%;
+    --medium-foreground: 224 42% 9%;
+
+    --success: 150 55% 45%;
+    --success-foreground: 224 42% 9%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display;
+  }
+}
+
+@layer utilities {
+  .care-line {
+    background-image: linear-gradient(hsl(var(--border)), hsl(var(--border)));
+    background-repeat: no-repeat;
+    background-size: 2px 100%;
+    background-position: center;
+  }
+
+  .skeleton-shimmer {
+    background-image: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--border)) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 800px 100%;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

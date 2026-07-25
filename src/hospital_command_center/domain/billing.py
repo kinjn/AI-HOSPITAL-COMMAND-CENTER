@@ -76,6 +76,14 @@ class InsuranceDocument(BaseModel):
     document_type: str = Field(default="pre_authorization_request")
     reference_number: str
     generated_at: datetime = Field(default_factory=datetime.utcnow)
+    patient_name: str | None = Field(
+        default=None,
+        description="Patient's full name as captured at intake, printed on the document.",
+    )
+    treating_facility: str = Field(
+        default="AI-HCC",
+        description="Facility issuing this pre-authorization request.",
+    )
     clinical_indication: str
     proposed_services: list[str] = Field(default_factory=list)
     estimated_amount_inr: Decimal = Field(ge=0)

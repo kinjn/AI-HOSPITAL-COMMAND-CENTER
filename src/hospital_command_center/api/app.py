@@ -1,6 +1,7 @@
 """FastAPI app factory and entrypoint."""
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import time
 import uuid
@@ -8,7 +9,7 @@ import logging
 from pydantic import ValidationError as PydanticValidationError
 
 from hospital_command_center.api.deps import verify_api_key
-from hospital_command_center.api.routes import encounters, followup, health, intake, triage, webhooks, workflow
+from hospital_command_center.api.routes import encounters, followup, health, intake, patient, triage, webhooks, workflow
 from hospital_command_center.core.config import WELCOME_MESSAGE, get_settings
 from hospital_command_center.core.exceptions import (
     IntakeError,
@@ -26,6 +27,17 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_name, version="0.1.0")
     request_logger = logging.getLogger("hospital_command_center.requests")
+
+    # The React frontend is served from a different origin (Vite dev server /
+    # static host) than the API, so browser requests need CORS enabled.
+    # Origins are configurable via CORS_ALLOW_ORIGINS; defaults cover local dev.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_allow_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
@@ -95,6 +107,7 @@ def create_app() -> FastAPI:
     app.include_router(encounters.router, prefix=prefix, **protected)
     app.include_router(followup.router, prefix=prefix, **protected)
     app.include_router(webhooks.router, prefix=prefix, **protected)
+    app.include_router(patient.router, prefix=prefix, **protected)
 
     return app
 

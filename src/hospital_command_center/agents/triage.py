@@ -52,6 +52,7 @@ class TriageAgent(BaseAgent):
         phone: str | None = None,
         channel: str | None = None,
         patient_history: str | None = None,
+        known_medical_conditions: str | None = None,
         triage_conversation: list[dict[str, str]] | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
@@ -61,6 +62,8 @@ class TriageAgent(BaseAgent):
         user_lines = [f"Symptoms: {symptoms.strip()}"]
         if patient_history:
             user_lines.append(f"Prior visit history:\n{patient_history}")
+        if known_medical_conditions:
+            user_lines.append(f"Known pre-existing conditions: {known_medical_conditions}")
         if patient_name:
             user_lines.append(f"Patient name: {patient_name}")
         if age is not None:

@@ -49,6 +49,15 @@ class BillingRecordModel(Base):
     # draft | submitted | approved | rejected
     status: Mapped[str] = mapped_column(String(32), default="draft")
 
+    # Patient-initiated "Demand insurance document" request, tracked
+    # separately from `status` above (which reflects staff's overall
+    # billing approval). None = never requested. requested | approved |
+    # rejected reflect the patient portal's request and the staff
+    # portal's accept/reject response to it.
+    insurance_request_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    insurance_requested_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    insurance_responded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships

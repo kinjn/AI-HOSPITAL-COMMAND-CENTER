@@ -119,6 +119,7 @@ class EncounterPersistenceService:
             "channel": payload.channel.value,
             "dietary_preference": payload.dietary_preference,
             "food_allergies": payload.food_allergies,
+            "known_medical_conditions": payload.known_medical_conditions,
         }
         encounter = EncounterModel(
             patient_id=patient.id,
@@ -280,7 +281,11 @@ class EncounterPersistenceService:
                     followup_type="comprehensive_plan",
                 )
             )
-            encounter.status = "closed"
+            # Generating the follow-up plan does NOT close the encounter —
+            # it stays "billing_ready" (open) until staff explicitly approve
+            # billing via POST /encounters/{id}/billing/approve
+            # (api/routes/encounters.py). That endpoint is now the only
+            # place that ever sets status = "closed".
 
         encounter.updated_at = datetime.utcnow()
         await self._session.commit()

@@ -56,6 +56,7 @@ def _apply_context(
     triage_conversation: list[dict[str, str]] | None = None,
     dietary_preference: str | None = None,
     food_allergies: str | None = None,
+    known_medical_conditions: str | None = None,
 ) -> PatientWorkflowState:
     if patient_name:
         initial["patient_name"] = patient_name
@@ -75,6 +76,8 @@ def _apply_context(
         initial["dietary_preference"] = dietary_preference
     if food_allergies:
         initial["food_allergies"] = food_allergies
+    if known_medical_conditions:
+        initial["known_medical_conditions"] = known_medical_conditions
     return initial
 
 
@@ -91,6 +94,7 @@ def run_patient_workflow(
     triage_conversation: list[dict[str, str]] | None = None,
     dietary_preference: str | None = None,
     food_allergies: str | None = None,
+    known_medical_conditions: str | None = None,
 ) -> dict:
     workflow = get_patient_workflow()
     initial: PatientWorkflowState = {
@@ -108,6 +112,7 @@ def run_patient_workflow(
         triage_conversation=triage_conversation,
         dietary_preference=dietary_preference,
         food_allergies=food_allergies,
+        known_medical_conditions=known_medical_conditions,
     )
     return workflow.invoke(initial)
 

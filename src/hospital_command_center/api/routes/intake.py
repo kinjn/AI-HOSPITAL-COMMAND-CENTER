@@ -1,6 +1,7 @@
 """Patient symptom submission endpoints."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_command_center.api.deps import db_session_dep, workflow_service_dep
@@ -10,6 +11,15 @@ from hospital_command_center.domain.intake import IntakeSubmission
 from hospital_command_center.services.workflow_service import WorkflowService
 
 router = APIRouter(prefix="/intake", tags=["intake"])
+
+
+def _validation_detail(exc: ValidationError) -> list[dict]:
+    """Flatten pydantic errors into the same shape FastAPI uses for its own
+    422 responses, so the frontend's existing error handling works for both."""
+    return [
+        {"loc": list(err["loc"]), "msg": err["msg"], "type": err["type"]}
+        for err in exc.errors()
+    ]
 
 
 @router.post("")
@@ -29,7 +39,10 @@ async def submit_web_intake(
     workflow: WorkflowService = Depends(workflow_service_dep),
 ) -> dict:
     """Web form intake. Body: `{ "symptoms": "...", "patient_name": "...", "phone": "..." }`"""
-    submission = WebChannel().to_intake(raw)
+    try:
+        submission = WebChannel().to_intake(raw)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=_validation_detail(exc)) from exc
     return await workflow.start_from_intake(session, submission)
 
 
@@ -40,5 +53,8 @@ async def submit_app_intake(
     workflow: WorkflowService = Depends(workflow_service_dep),
 ) -> dict:
     """Mobile app intake. Same JSON shape as `/web`."""
-    submission = MobileAppChannel().to_intake(raw)
+    try:
+        submission = MobileAppChannel().to_intake(raw)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=_validation_detail(exc)) from exc
     return await workflow.start_from_intake(session, submission)

@@ -16,4 +16,7 @@ class MobileAppChannel(ChannelAdapter):
             age=raw.get("age"),
             gender=raw.get("gender"),
             phone=raw.get("phone") or raw.get("mobile"),
+            dietary_preference=raw.get("dietary_preference"),
+            food_allergies=raw.get("food_allergies"),
+            known_medical_conditions=raw.get("known_medical_conditions"),
         )

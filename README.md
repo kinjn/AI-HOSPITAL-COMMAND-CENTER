@@ -2,7 +2,7 @@
 
 Multi-agent workflow platform for hospital automation: patient flow, OPD coordination, discharge summaries, insurance communication, and doctor assistance.
 
-**Stack:** LangGraph · FastAPI · SQLite · Streamlit · Pydantic
+**Stack:** LangGraph · FastAPI · SQLite · React · Pydantic
 
 ## Quick start
 
@@ -15,23 +15,27 @@ copy .env.example .env
 python scripts\init_db.py
 ```
 
-### Streamlit UI (command center)
-
-```powershell
-python scripts\run_ui.py
-```
-
-Open http://localhost:8501 — you should see **Welcome to Hospital command center**.
-
 ### FastAPI backend
 
 ```powershell
 python scripts\run_api.py
 ```
 
-- Root: http://localhost:8000/ — same welcome message (JSON)
+- Root: http://localhost:8000/ — welcome message (JSON)
 - Docs: http://localhost:8000/docs
 - Health: http://localhost:8000/api/v1/health
+
+### React frontend (command center)
+
+```powershell
+cd frontend
+copy .env.example .env
+npm install
+npm run dev
+```
+
+Open http://localhost:5173 — see [frontend/README.md](frontend/README.md) for details, including
+the `VITE_API_KEY` / `VITE_API_BASE_URL` variables it needs to talk to the backend above.
 
 ## Project layout
 
@@ -44,8 +48,9 @@ src/hospital_command_center/
 ├── db/              # SQLAlchemy models & repositories
 ├── domain/          # Pydantic models
 ├── graphs/          # LangGraph patient workflow (linear stub)
-├── services/        # Service layer
-└── ui/              # Streamlit app
+└── services/        # Service layer
+
+frontend/            # React + Vite operations dashboard (replaces the old Streamlit UI)
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/MODULE_MAP.md](docs/MODULE_MAP.md).

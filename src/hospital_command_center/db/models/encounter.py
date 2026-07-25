@@ -18,6 +18,12 @@ class EncounterModel(Base):
     symptoms: Mapped[str] = mapped_column(Text, default="")
     source_channel: Mapped[str] = mapped_column(String(32), default="web")  # whatsapp | web | app
 
+    # Short, unguessable, patient-facing identifier (e.g. "HCC-83AF92"),
+    # minted only for encounters created through the Patient Portal's
+    # tracking-ID intake flow (api/routes/patient.py). Null for encounters
+    # created via the generic /intake endpoints, which don't use it.
+    tracking_id: Mapped[str | None] = mapped_column(String(16), unique=True, index=True, nullable=True)
+
     # Workflow state: intake → triaged → routed → summary_ready → billing_ready → closed
     status: Mapped[str] = mapped_column(String(32), default="intake")
 

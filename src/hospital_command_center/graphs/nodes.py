@@ -33,6 +33,7 @@ def triage_node(state: PatientWorkflowState) -> PatientWorkflowState:
             gender=state.get("gender"),
             phone=state.get("phone"),
             channel=state.get("channel"),
+            known_medical_conditions=state.get("known_medical_conditions"),
         ),
     }
 
@@ -63,6 +64,7 @@ def summarize_node(state: PatientWorkflowState) -> PatientWorkflowState:
             patient_name=state.get("patient_name"),
             age=state.get("age"),
             gender=state.get("gender"),
+            known_medical_conditions=state.get("known_medical_conditions"),
         ),
     }
 
@@ -77,6 +79,7 @@ def billing_node(state: PatientWorkflowState) -> PatientWorkflowState:
             routing=state.get("routing"),
             medical_summary=state.get("medical_summary"),
             symptoms=state.get("symptoms", ""),
+            patient_name=state.get("patient_name"),
         ),
     }
 

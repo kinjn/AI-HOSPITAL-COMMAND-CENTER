@@ -946,6 +946,8 @@ class BillingInsuranceAgent(BaseAgent):
         routing = self._parse_routing(encounter_id, kwargs.get("routing"))
         medical_summary = self._parse_medical_summary(encounter_id, kwargs.get("medical_summary"))
         symptoms = str(kwargs.get("symptoms", ""))
+        patient_name_raw = kwargs.get("patient_name")
+        patient_name = str(patient_name_raw).strip() if patient_name_raw else None
 
         pathway = routing.pathway
         cost_breakdown = self._estimate_costs(
@@ -961,6 +963,7 @@ class BillingInsuranceAgent(BaseAgent):
             medical_summary=medical_summary,
             symptoms=symptoms,
             cost_breakdown=cost_breakdown,
+            patient_name=patient_name,
         )
         insurance_documentation = self._format_insurance_documentation(
             insurance_document,
@@ -1042,6 +1045,7 @@ class BillingInsuranceAgent(BaseAgent):
         medical_summary: MedicalSummary,
         symptoms: str,
         cost_breakdown: CostBreakdown,
+        patient_name: str | None = None,
     ) -> InsuranceDocument:
         # Dedupe so the same test isn't listed (and later billed/coded) twice
         # under two different aliases (e.g. "CBC" and "Complete Blood Count").
@@ -1137,6 +1141,8 @@ class BillingInsuranceAgent(BaseAgent):
         return InsuranceDocument(
             encounter_id=encounter_id,
             reference_number=f"PREAUTH-{str(encounter_id)[:8].upper()}",
+            patient_name=patient_name,
+            treating_facility="AI-HCC",
             clinical_indication=clinical_indication,
             proposed_services=proposed_services,
             estimated_amount_inr=cost_breakdown.total,
@@ -1229,9 +1235,9 @@ class BillingInsuranceAgent(BaseAgent):
                 f"Encounter ID:       {document.encounter_id}",
                 f"Document Type:      {document.document_type}",
                 f"Generated At (UTC): {document.generated_at.isoformat()}Z",
-                "Patient Name:       [As per hospital registration]",
+                f"Patient Name:       {document.patient_name or '[As per hospital registration]'}",
                 "Policy / Member ID: [To be completed by billing desk]",
-                "Treating Facility:  [Facility name / network hospital ID]",
+                f"Treating Facility:  {document.treating_facility}",
                 "-" * 72,
                 "CLINICAL INDICATION",
                 "-" * 72,

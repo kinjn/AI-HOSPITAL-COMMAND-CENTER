@@ -127,6 +127,7 @@ class MedicalSummarizerAgent(BaseAgent):
         age: int | None = None,
         gender: str | None = None,
         prior_history: str | None = None,
+        known_medical_conditions: str | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
         if not symptoms.strip():
@@ -144,6 +145,8 @@ class MedicalSummarizerAgent(BaseAgent):
             user_lines.append(f"Triage urgency: {urgency}")
         if triage_rationale:
             user_lines.append(f"Triage rationale: {triage_rationale}")
+        if known_medical_conditions:
+            user_lines.append(f"Known pre-existing conditions: {known_medical_conditions}")
         if prior_history:
             user_lines.append(f"Prior medical history: {prior_history}")
         else:
