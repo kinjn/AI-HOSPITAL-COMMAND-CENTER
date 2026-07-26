@@ -23,6 +23,7 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -113,7 +114,7 @@ async def submit_patient_intake(
     try:
         submission = WebChannel().to_intake(raw)
     except ValidationError as exc:
-        raise HTTPException(status_code=422, detail=exc.errors()) from exc
+        raise HTTPException(status_code=422, detail=jsonable_encoder(exc.errors())) from exc
 
     result = await workflow.start_from_intake(session, submission)
 
@@ -165,7 +166,7 @@ async def submit_patient_clarification(
     except TriageError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except ValidationError as exc:
-        raise HTTPException(status_code=422, detail=exc.errors()) from exc
+        raise HTTPException(status_code=422, detail=jsonable_encoder(exc.errors())) from exc
 
     return _tracking_submission_result(tracking_id, result)
 

@@ -2,6 +2,7 @@
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 import time
 import uuid
@@ -91,7 +92,7 @@ def create_app() -> FastAPI:
     
     @app.exception_handler(PydanticValidationError)
     async def pydantic_validation_handler(_request: Request, exc: PydanticValidationError) -> JSONResponse:
-        return JSONResponse(status_code=422, content={"detail": exc.errors()})
+        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
 
     @app.get("/")
     async def root() -> dict[str, str]:

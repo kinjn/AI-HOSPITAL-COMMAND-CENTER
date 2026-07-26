@@ -22,7 +22,7 @@ export function extractErrorMessage(error: unknown): string {
     const data = error.response?.data as ApiErrorShape | undefined;
     if (typeof data?.detail === "string") return data.detail;
     if (Array.isArray(data?.detail) && data.detail.length > 0) {
-      return data.detail.map((d) => d.msg).join(", ");
+      return data.detail.map((d) => d.msg.replace(/^Value error,\s*/, "")).join(", ");
     }
     if (error.code === "ECONNABORTED") return "That took too long to respond. Please try again.";
     if (!error.response) return "Can't reach the server right now. Check your connection and try again.";
